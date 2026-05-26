@@ -7,23 +7,18 @@ A library of reusable application-level Bicep modules for Teknova apps. Distinct
 | `AlphaTeknova/azure-shared-infra` | Deployment project | Running hub resources (VNet, DNS, Log Analytics) |
 | `alphateknova/bicep-modules` (this repo) | Module library | Reusable `.bicep` building blocks |
 
-## Module catalog (v0.1.0-pre)
+## Module catalog (v1.0.0)
 
 | Module | Purpose | Phase |
 |---|---|---|
 | `modules/app-service-plan.bicep` | Linux App Service Plan, parameterized SKU + instance count | Phase 1 (seeded from QB) |
 | `modules/app-service-public.bicep` | App Service with **public** ingress — HTTPS-only, MSI, TLS 1.2, Dep §5.5 explicit-exposure naming | Phase 1 (seeded from QB) |
+| `modules/app-service-with-pe.bicep` | App Service with PE inbound + VNet integration outbound (default backend shape per Dep §5.1) | Phase 3 (fresh) |
 | `modules/sql-database.bicep` | SQL Database, parameterized SKU + backup redundancy | Phase 1 (seeded from QB) |
+| `modules/sql-server-with-pe.bicep` | SQL server with `publicNetworkAccess: 'Disabled'`, AAD-only auth, no firewall, PE + DNS A | Phase 3 (fresh) |
+| `modules/keyvault-with-pe.bicep` | Key Vault with RBAC auth, soft-delete + purge protection, PE + DNS A | Phase 3 (fresh) |
+| `modules/service-bus.bicep` | Service Bus namespace (Standard) with PE, `disableLocalAuth`, parameterized topics | Phase 3 (fresh) |
 | `modules/static-web-app.bicep` | Static Web App resource | Phase 1 (seeded from QB) |
-
-Pending modules (added in EOP Phase 3 — see SOURCES.md for why they aren't seeded):
-
-- `app-service-with-pe.bicep` — App Service with private endpoint (the default for backend APIs per Dep §5.1)
-- `sql-server-with-pe.bicep` — SQL server with `publicNetworkAccess: 'Disabled'`, Entra-only auth, PE, DNS A-record
-- `keyvault-with-pe.bicep` — Key Vault with RBAC auth, soft-delete + purge protection, PE, DNS A-record
-- `service-bus.bicep` — Service Bus namespace with PE, DLQ alerts
-
-These four are the standards-conforming primitives; the v1.0.0 cut bundles them with the four seeded modules.
 
 ## Consumer pattern
 
@@ -66,7 +61,7 @@ Git tags per [Dep §10.2]. Format: `vMAJOR.MINOR.PATCH`. Breaking changes (renam
 Current state:
 
 - `v0.1.0-pre` — initial seeded modules from QB; not standards-conforming for SQL Server / Key Vault / App Service PE variant
-- `v1.0.0` (planned, EOP Phase 3) — adds the four pending modules; signals "library is standards-conforming"
+- `v1.0.0` — adds the four fresh PE-variant + Service Bus modules; library is standards-conforming end-to-end
 
 ## See also
 
