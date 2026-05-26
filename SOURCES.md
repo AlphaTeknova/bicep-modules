@@ -42,7 +42,18 @@ These modules exist in QB but were rejected during the v0.1.0-pre seed. Consumer
 
 ## Native-to-this-library (no QB equivalent)
 
-These modules don't exist in QB at all. They land in Phase 3 alongside the rejected-module replacements.
+These modules don't exist in QB at all. Added in Phase 3 (v1.0.0) alongside the rejected-module replacements.
 
-- `app-service-with-pe.bicep` — App Service with private endpoint. Backend APIs accessed via App Gateway (Dep §5.1) need the PE variant, not the public variant.
-- `service-bus.bicep` — Service Bus namespace. Needed for EOP's three-worker pipeline (TS ADR-D-003b). Will ship with `publicNetworkAccess: 'Disabled'`, PE, DNS A-record into `privatelink.servicebus.windows.net`, and default DLQ alerts per Dep §7.4.
+| Library module | Reason | Added |
+|---|---|---|
+| `modules/app-service-with-pe.bicep` | Backend APIs accessed via App Gateway (Dep §5.1) need the PE variant, not the public variant. | 2026-05-25, v1.0.0 |
+| `modules/service-bus.bicep` | EOP's three-worker pipeline (TS ADR-D-003b) needs topics. `publicNetworkAccess: 'Disabled'`, PE, `disableLocalAuth: true` (no SAS). DLQ alerts are a consumer-side concern — set at subscription scope, not namespace. | 2026-05-25, v1.0.0 |
+
+## Phase 3 fresh-write replacements
+
+The two rejected QB modules got fresh-write replacements in Phase 3 (v1.0.0). Listed here for cross-reference; the rejection rationale above remains the authoritative "why."
+
+| Replacement | Replaces (rejected) | Notes |
+|---|---|---|
+| `modules/sql-server-with-pe.bicep` | `sql-server.bicep` (QB) | No `administratorLogin` / `administratorLoginPassword` params at all. AAD admin via `administrators` block + child `azureADOnlyAuthentications` resource. PE + DNS A. |
+| `modules/keyvault-with-pe.bicep` | `key-vault.bicep` (QB) | Creator, not `existing` reference. `enableRbacAuthorization: true`, soft-delete 90d, purge protection. PE + DNS A. |
