@@ -7,18 +7,25 @@ A library of reusable application-level Bicep modules for Teknova apps. Distinct
 | `AlphaTeknova/azure-shared-infra` | Deployment project | Running hub resources (VNet, DNS, Log Analytics) |
 | `alphateknova/bicep-modules` (this repo) | Module library | Reusable `.bicep` building blocks |
 
-## Module catalog (v1.0.0)
+## Module catalog (v1.1.0)
 
-| Module | Purpose | Phase |
-|---|---|---|
-| `modules/app-service-plan.bicep` | Linux App Service Plan, parameterized SKU + instance count | Phase 1 (seeded from QB) |
-| `modules/app-service-public.bicep` | App Service with **public** ingress — HTTPS-only, MSI, TLS 1.2, Dep §5.5 explicit-exposure naming | Phase 1 (seeded from QB) |
-| `modules/app-service-with-pe.bicep` | App Service with PE inbound + VNet integration outbound (default backend shape per Dep §5.1) | Phase 3 (fresh) |
-| `modules/sql-database.bicep` | SQL Database, parameterized SKU + backup redundancy | Phase 1 (seeded from QB) |
-| `modules/sql-server-with-pe.bicep` | SQL server with `publicNetworkAccess: 'Disabled'`, AAD-only auth, no firewall, PE + DNS A | Phase 3 (fresh) |
-| `modules/keyvault-with-pe.bicep` | Key Vault with RBAC auth, soft-delete + purge protection, PE + DNS A | Phase 3 (fresh) |
-| `modules/service-bus.bicep` | Service Bus namespace (Standard) with PE, `disableLocalAuth`, parameterized topics | Phase 3 (fresh) |
-| `modules/static-web-app.bicep` | Static Web App resource | Phase 1 (seeded from QB) |
+The **Deploy-proven** column distinguishes modules with production heritage (have been deployed and run) from those whose first production deploy is still pending. Compile-only modules pass `az bicep build` cleanly but haven't been exercised against live Azure — first deploy may surface API-version, PE-groupId, or RBAC-shape issues that warrant a patch release.
+
+| Module | Purpose | Phase | Deploy-proven |
+|---|---|---|---|
+| `modules/app-service-plan.bicep` | Linux App Service Plan, parameterized SKU + instance count | Phase 1 (seeded from QB) | ✓ (Quote Builder prod) |
+| `modules/app-service-public.bicep` | App Service with **public** ingress — HTTPS-only, MSI, TLS 1.2, Dep §5.5 explicit-exposure naming | Phase 1 (seeded from QB) | ✓ (Quote Builder prod) |
+| `modules/app-service-with-pe.bicep` | App Service with PE inbound + VNet integration outbound (default backend shape per Dep §5.1) | Phase 3 (fresh) | Pending (EOP stage deploy is the validation event) |
+| `modules/sql-database.bicep` | SQL Database, parameterized SKU + backup redundancy | Phase 1 (seeded from QB) | ✓ (Quote Builder prod) |
+| `modules/sql-server-with-pe.bicep` | SQL server with `publicNetworkAccess: 'Disabled'`, AAD-only auth, no firewall, PE + DNS A | Phase 3 (fresh) | Pending |
+| `modules/keyvault-with-pe.bicep` | Key Vault with RBAC auth, soft-delete + purge protection, PE + DNS A | Phase 3 (fresh) | Pending |
+| `modules/service-bus.bicep` | Service Bus namespace (Standard) with PE, `disableLocalAuth`, parameterized topics + dup-detection | Phase 3 (fresh) | Pending |
+| `modules/static-web-app.bicep` | Static Web App resource | Phase 1 (seeded from QB) | ✓ (Quote Builder prod) |
+
+### Adoption guidance for other Teknova apps
+
+- **Deploy-proven modules:** safe to consume now. Migrate at your own pace.
+- **Pending modules:** consume if you're willing to be a co-validator and submit fixes/issues against this repo when first deploy turns up problems. Otherwise wait for the `v1.x.y` release notes to mark these "Proven" — that happens after EOP's first successful stage deploy lands.
 
 ## Consumer pattern
 
@@ -61,7 +68,10 @@ Git tags per [Dep §10.2]. Format: `vMAJOR.MINOR.PATCH`. Breaking changes (renam
 Current state:
 
 - `v0.1.0-pre` — initial seeded modules from QB; not standards-conforming for SQL Server / Key Vault / App Service PE variant
-- `v1.0.0` — adds the four fresh PE-variant + Service Bus modules; library is standards-conforming end-to-end
+- `v1.0.0` — adds the four fresh PE-variant + Service Bus modules; library is standards-conforming end-to-end. **API surface stable; deploy validation of the PE-variant modules pending.**
+- `v1.1.0` — hardening pass. Parameterizes opinionated defaults (`service-bus.bicep` dup-detection; `keyvault-with-pe.bicep` template/deployment/disk-encryption flags). Removes a duplicate `vnetRouteAllEnabled` in `app-service-with-pe.bicep`. Adds repo-local CI that lints every module on every PR.
+
+Expect a `v1.x.y` after EOP's first stage deploy. That release will flip the "Pending" entries in the catalog to "Proven" and call out any parameter/output changes needed by deploy-time findings.
 
 ## See also
 

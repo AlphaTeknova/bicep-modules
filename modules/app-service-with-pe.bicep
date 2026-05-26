@@ -67,7 +67,9 @@ resource app 'Microsoft.Web/sites@2024-04-01' = {
     clientAffinityEnabled: false
     publicNetworkAccess: 'Disabled'
     virtualNetworkSubnetId: vnetIntegrationSubnetId
-    vnetRouteAllEnabled: true
+    // vnetRouteAllEnabled lives in siteConfig only — see below. The legacy
+    // properties-level alias is silently accepted by some API versions and
+    // ignored by others; removing it avoids drift when the alias is dropped.
     siteConfig: {
       linuxFxVersion: linuxFxVersion
       alwaysOn: true

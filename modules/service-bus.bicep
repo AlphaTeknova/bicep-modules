@@ -30,6 +30,12 @@ param privateDnsZoneId string
 @description('Topic names to create. Subscriptions land with the consumer workloads, not here.')
 param topicNames array = []
 
+@description('Whether topics require duplicate detection on the MessageId. Default true to match the EOP outbox-pattern use case (consumers dedupe on outbox row Id). Set false for fan-out scenarios where every send is unique.')
+param topicRequiresDuplicateDetection bool = true
+
+@description('Duplicate-detection history window when topicRequiresDuplicateDetection is true. ISO-8601 duration. Default PT10M.')
+param topicDuplicateDetectionHistoryTimeWindow string = 'PT10M'
+
 @description('Resource tags.')
 param tags object = {}
 
@@ -57,8 +63,8 @@ resource topics 'Microsoft.ServiceBus/namespaces/topics@2024-01-01' = [for topic
   name: topicName
   properties: {
     enablePartitioning: false
-    requiresDuplicateDetection: true
-    duplicateDetectionHistoryTimeWindow: 'PT10M'
+    requiresDuplicateDetection: topicRequiresDuplicateDetection
+    duplicateDetectionHistoryTimeWindow: topicDuplicateDetectionHistoryTimeWindow
     defaultMessageTimeToLive: 'P14D'
     supportOrdering: false
   }

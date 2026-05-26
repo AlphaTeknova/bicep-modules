@@ -1,0 +1,49 @@
+# Library PR-time lint.
+#
+# The bicep-modules library has no consumers inside this repo — its consumers
+# are other repos (alphateknova/orderintake and future apps). Without a CI gate
+# here, syntax breakage only surfaces when a downstream consumer pulls a new
+# tag and runs `az bicep build`, which is too late.
+#
+# This job runs `az bicep build` against every module on every PR. No Azure
+# login required — Bicep CLI lints purely against the schema.
+name: pr
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bicep-lint:
+    name: Bicep lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # az + bicep are preinstalled on ubuntu-latest. Pin bicep to the runner's
+      # version explicitly so we know what schema we're linting against; if a
+      # consumer pins a newer Bicep, they'll catch any new lint rules first.
+      - name: Show Bicep version
+        run: az bicep version
+
+      - name: Lint every module
+        run: |
+          set -euo pipefail
+          fail=0
+          for f in modules/*.bicep; do
+            echo "::group::$f"
+            if ! az bicep build --file "$f" --stdout > /dev/null; then
+              fail=1
+              echo "::error file=$f::bicep build failed"
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
