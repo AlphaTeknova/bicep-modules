@@ -40,6 +40,15 @@ param privateDnsZoneId string
 ])
 param skuName string = 'standard'
 
+@description('Whether ARM templates can read secrets at deploy time via @Microsoft.KeyVault inline references. Default false — EOP and similar apps fetch via MSI at runtime, which is the Dep §6.3 path. Set true for apps that legitimately need ARM-time secret resolution.')
+param enabledForTemplateDeployment bool = false
+
+@description('Whether VMs can fetch secrets/certs from this vault for disk encryption. Default false — set true only when the vault hosts disk-encryption keys.')
+param enabledForDiskEncryption bool = false
+
+@description('Whether the Azure Resource Manager (ARM) can pull secrets from this vault when deploying resources. Default false. Distinct from enabledForTemplateDeployment.')
+param enabledForDeployment bool = false
+
 @description('Resource tags.')
 param tags object = {}
 
@@ -54,9 +63,9 @@ resource kv 'Microsoft.KeyVault/vaults@2024-04-01-preview' = {
       name: skuName
     }
     enableRbacAuthorization: true
-    enabledForDeployment: false
-    enabledForTemplateDeployment: false
-    enabledForDiskEncryption: false
+    enabledForDeployment: enabledForDeployment
+    enabledForTemplateDeployment: enabledForTemplateDeployment
+    enabledForDiskEncryption: enabledForDiskEncryption
     enableSoftDelete: true
     softDeleteRetentionInDays: 90
     enablePurgeProtection: true

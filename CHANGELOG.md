@@ -2,6 +2,25 @@
 
 Module library releases. Format roughly follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [v1.1.0] — 2026-05-26
+
+Hardening pass driven by a pre-adoption review across EOP and the candidate next consumer apps. No breaking changes — every new parameter has a default equal to the previous hardcoded value.
+
+### Added
+
+- `modules/service-bus.bicep`: parameters `topicRequiresDuplicateDetection` (default `true`) and `topicDuplicateDetectionHistoryTimeWindow` (default `'PT10M'`). Defaults match v1.0.0 behavior. Consumers with fan-out semantics can opt out.
+- `modules/keyvault-with-pe.bicep`: parameters `enabledForTemplateDeployment`, `enabledForDeployment`, `enabledForDiskEncryption` (all default `false`, matching v1.0.0). Consumers who legitimately need ARM-time secret resolution or VM disk-encryption integration can opt in without forking the module.
+- `.github/workflows/pr.yml`: repo-local CI lints every `modules/*.bicep` on every PR via `az bicep build`. Closes the gap where the library previously relied on transitive lint via consumer repos.
+- `README.md`: catalog now distinguishes deploy-proven modules (Quote Builder prod heritage) from compile-only PE-variant modules (first EOP stage deploy is the validation event). Adoption guidance section added.
+
+### Fixed
+
+- `modules/app-service-with-pe.bicep`: removed duplicate `vnetRouteAllEnabled: true` at the properties level. The canonical location in modern API versions is `siteConfig.vnetRouteAllEnabled`; the properties-level alias is silently accepted by some API versions and ignored by others. Behavior unchanged in practice.
+
+### Versioning notes
+
+`v1.1.0` per the README's MINOR rule: new optional parameters. The dup-removal is technically a generated-template change, but the rendered ARM was redundant — Azure picked one and ignored the other — so no observable consumer behavior changes.
+
 ## [v1.0.0] — 2026-05-25
 
 First stable cut. The library is now standards-conforming: SQL Server, Key Vault, App Service, and Service Bus all have PE-only variants. Consumers can compose a full PE-only Azure footprint without falling back to the rejected QB shapes.
