@@ -13,6 +13,18 @@
 //   in the app's own subnet for simplicity.
 // - Health-check path defaults to /health (App §11). Note App vs Dep §7.2
 //   disagreement on /health vs /healthz; this module follows App §11.
+// - Public-network access: `publicNetworkAccess: 'Enabled'` with
+//   `ipSecurityRestrictionsDefaultAction: 'Deny'` (no `ipSecurityRestrictions`
+//   entries). Effect: runtime is unreachable from the public internet — every
+//   public-IP request gets a 403. PE-inbound traffic bypasses access
+//   restrictions per Azure docs, so runtime is effectively PE-only.
+//   SCM/Kudu uses its own rule set (`scmIpSecurityRestrictionsUseMain: false`,
+//   default Allow) so GitHub-hosted runners can OneDeploy to the public SCM
+//   endpoint — OIDC/MSI auth gates write access. Replaces the prior
+//   `publicNetworkAccess: 'Disabled'` setting that also blocked SCM and broke
+//   CI (the "Ip Forbidden 403" failure on the GitHub-hosted runner). When the
+//   Phase 4 self-hosted-runner-in-hub-VNet lands, flip this back to 'Disabled'
+//   and remove the SCM allow.
 
 @description('App Service name, e.g. tk-com-orderintake-stage-api. Globally unique.')
 param name string
@@ -65,7 +77,7 @@ resource app 'Microsoft.Web/sites@2024-04-01' = {
     serverFarmId: planId
     httpsOnly: true
     clientAffinityEnabled: false
-    publicNetworkAccess: 'Disabled'
+    publicNetworkAccess: 'Enabled'
     virtualNetworkSubnetId: vnetIntegrationSubnetId
     // vnetRouteAllEnabled lives in siteConfig only — see below. The legacy
     // properties-level alias is silently accepted by some API versions and
@@ -78,6 +90,14 @@ resource app 'Microsoft.Web/sites@2024-04-01' = {
       http20Enabled: true
       healthCheckPath: healthCheckPath
       vnetRouteAllEnabled: true
+      // Runtime is locked down to PE-inbound only via deny-default access
+      // restrictions. PE traffic bypasses these per Azure docs. SCM keeps
+      // its own (Allow-default) rules so GitHub-hosted runners can deploy.
+      ipSecurityRestrictionsDefaultAction: 'Deny'
+      ipSecurityRestrictions: []
+      scmIpSecurityRestrictionsUseMain: false
+      scmIpSecurityRestrictionsDefaultAction: 'Allow'
+      scmIpSecurityRestrictions: []
       appSettings: [for setting in items(union(appSettings, keyVaultReferences)): {
         name: setting.key
         value: setting.value
