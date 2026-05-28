@@ -37,6 +37,9 @@ param connectionStrings object = {}
 @description('Health check path. Standards §11 says /health unconditionally.')
 param healthCheckPath string = '/health'
 
+@description('Resource IDs of user-assigned managed identities to attach. Default empty = system-assigned only. When supplied, the site carries `SystemAssigned, UserAssigned` so existing SAMI-based RBAC keeps working alongside the durable UAMIs. Pair with an `AZURE_CLIENT_ID` app setting pointing at the chosen UAMI so DefaultAzureCredential picks it deterministically.')
+param userAssignedIdentityIds string[] = []
+
 @description('Resource tags.')
 param tags object = {}
 
@@ -45,8 +48,11 @@ resource app 'Microsoft.Web/sites@2024-04-01' = {
   location: location
   tags: tags
   kind: 'app,linux'
-  identity: {
+  identity: empty(userAssignedIdentityIds) ? {
     type: 'SystemAssigned'
+  } : {
+    type: 'SystemAssigned, UserAssigned'
+    userAssignedIdentities: toObject(userAssignedIdentityIds, id => id, id => {})
   }
   properties: {
     serverFarmId: planId
