@@ -40,6 +40,14 @@ param healthCheckPath string = '/health'
 @description('Resource IDs of user-assigned managed identities to attach. Default empty = system-assigned only. When supplied, the site carries `SystemAssigned, UserAssigned` so existing SAMI-based RBAC keeps working alongside the durable UAMIs. Pair with an `AZURE_CLIENT_ID` app setting pointing at the chosen UAMI so DefaultAzureCredential picks it deterministically.')
 param userAssignedIdentityIds string[] = []
 
+@description('Startup command line for the container. Default empty leaves Oryx auto-detection in place. Set explicitly (e.g. `dotnet Teknova.SomeApp.dll`) to skip Oryx — auto-detect is unreliable inside the warmup probe budget for renamed assemblies.')
+param appCommandLine string = ''
+
+@description('Cold-start container warmup limit (seconds), surfaced as the WEBSITES_CONTAINER_START_TIME_LIMIT app setting. Default 600 matches what CPQ found necessary in practice — Azure platform default of 230s busts cert rehash + Oryx detect on B1.')
+@minValue(60)
+@maxValue(1800)
+param containerStartTimeLimitSeconds int = 600
+
 @description('Resource tags.')
 param tags object = {}
 
@@ -65,7 +73,10 @@ resource app 'Microsoft.Web/sites@2024-04-01' = {
       minTlsVersion: '1.2'
       http20Enabled: true
       healthCheckPath: healthCheckPath
-      appSettings: [for setting in items(union(appSettings, keyVaultReferences)): {
+      appCommandLine: appCommandLine
+      appSettings: [for setting in items(union(appSettings, keyVaultReferences, {
+        WEBSITES_CONTAINER_START_TIME_LIMIT: string(containerStartTimeLimitSeconds)
+      })): {
         name: setting.key
         value: setting.value
       }]

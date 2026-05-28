@@ -2,6 +2,26 @@
 
 Module library releases. Format roughly follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [v1.2.0] — 2026-05-28
+
+Driven by CPQ Phase 2 cleanup item 2c.2 — two App Service warmup knobs that previously had to be set out-of-band via `az webapp config` after every Bicep apply. Baking them into the modules so the first apply gets the right shape and there's no drift between IaC state and runtime state. No breaking changes — every new parameter has a default equal to either Azure's platform default or the empirically-tested CPQ value.
+
+### Added
+
+- `modules/app-service-public.bicep`: parameters `appCommandLine` (default `''`) and `containerStartTimeLimitSeconds` (default `600`, `@minValue(60)`, `@maxValue(1800)`).
+  - `appCommandLine` maps to `siteConfig.appCommandLine`. Empty leaves Oryx auto-detection in place; setting it (e.g. `dotnet Teknova.SomeApp.dll`) skips Oryx detection entirely. CPQ found Oryx unreliable inside the warmup probe budget for renamed assemblies — see [feedback_project_rename_runtime_config](https://github.com/AlphaTeknova/CPQ) memory.
+  - `containerStartTimeLimitSeconds` is emitted as the `WEBSITES_CONTAINER_START_TIME_LIMIT` app setting (Azure's actual contract — there's no siteConfig field for this). Default `600` matches what CPQ Phase 2 found necessary on B1 SKU; Azure's platform default of 230s busts cert rehash + Oryx detect.
+- `modules/app-service-with-pe.bicep`: same two parameters with the same shape. Consumers can use either module without API drift between them.
+
+### Versioning notes
+
+`v1.2.0` per the README's MINOR rule: new optional parameters with default values matching either Azure's defaults (`appCommandLine: ''` = Oryx) or the previously-required-out-of-band value (`WEBSITES_CONTAINER_START_TIME_LIMIT: 600`). No consumer redeploys are forced; consumers who currently set `WEBSITES_CONTAINER_START_TIME_LIMIT` in their `appSettings` param will see the module's default take precedence via the `union()` ordering, but the value lands at `600` either way for current consumers.
+
+### Notes for consumers
+
+- After upgrading to `v1.2.0`, you can drop any out-of-band `az webapp config set --startup-file ...` or `az webapp config appsettings set --name WEBSITES_CONTAINER_START_TIME_LIMIT ...` calls in operator runbooks. The module is now the source of truth.
+- If you previously set `WEBSITES_CONTAINER_START_TIME_LIMIT` via the `appSettings` parameter, remove it — the module sets it from `containerStartTimeLimitSeconds` and `union()` resolution may give the module's value precedence depending on dictionary ordering.
+
 ## [v1.1.0] — 2026-05-26
 
 Hardening pass driven by a pre-adoption review across EOP and the candidate next consumer apps. No breaking changes — every new parameter has a default equal to the previous hardcoded value.
