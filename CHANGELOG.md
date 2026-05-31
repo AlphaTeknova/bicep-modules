@@ -2,6 +2,26 @@
 
 Module library releases. Format roughly follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [v1.3.0] — 2026-05-31
+
+Driven by CPQ Phase 3a prod stand-up — two App Service knobs that had to be set out-of-band via `az` after the first prod apply (and that caused a multi-hour debug of PublicApi failing to boot). Baking them into the modules so the first apply gets the right shape. No breaking changes — both new parameters default to the prior behavior.
+
+### Added
+
+- `modules/app-service-public.bicep`: parameters `vnetRouteAllEnabled` (default `false`) and `keyVaultReferenceIdentity` (default `''`).
+  - `vnetRouteAllEnabled` maps to `siteConfig.vnetRouteAllEnabled`. Default `false` = no change for public apps without VNet integration. Set `true` when the app integrates a VNet and must reach private endpoints (KV/SQL). CPQ Phase 3a shipped PublicApi with this `false`; outbound to `*.vault.azure.net` resolved to the blocked public IP and `AddAzureKeyVault` hung at startup → container start-timeout loop. (`app-service-with-pe` already hardcodes `true`.)
+  - `keyVaultReferenceIdentity` maps to `properties.keyVaultReferenceIdentity` (omitted when empty → platform default of system-assigned). Set to a UAMI resource ID when the app carries a user-assigned identity AND uses `keyVaultReferences`: platform KV-reference resolution defaults to the system-assigned MI, which typically has no KV RBAC (only the UAMI gets Secrets User), leaving references unresolved (red X). CPQ Phase 3a hit this on the Canary token reference on both apps.
+- `modules/app-service-with-pe.bicep`: parameter `keyVaultReferenceIdentity` (same shape, same rationale). It already set `vnetRouteAllEnabled: true`, so no route-all param needed here.
+
+### Versioning notes
+
+`v1.3.0` per the README's MINOR rule: new optional parameters with defaults matching prior behavior (`vnetRouteAllEnabled: false`, `keyVaultReferenceIdentity: ''` → system-assigned). No consumer redeploys forced; EOP's existing usage is unaffected.
+
+### Notes for consumers
+
+- Any app that (a) attaches a user-assigned identity and (b) uses `keyVaultReferences` should set `keyVaultReferenceIdentity` to that UAMI's resource ID, or its KV references will silently fail to resolve.
+- Public apps that integrate a VNet to reach private endpoints must set `vnetRouteAllEnabled: true` — VNet integration alone doesn't push outbound DNS/traffic through the integration reliably without it.
+
 ## [v1.2.0] — 2026-05-28
 
 Driven by CPQ Phase 2 cleanup item 2c.2 — two App Service warmup knobs that previously had to be set out-of-band via `az webapp config` after every Bicep apply. Baking them into the modules so the first apply gets the right shape and there's no drift between IaC state and runtime state. No breaking changes — every new parameter has a default equal to either Azure's platform default or the empirically-tested CPQ value.

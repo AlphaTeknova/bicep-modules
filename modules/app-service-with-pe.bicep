@@ -73,6 +73,9 @@ param appCommandLine string = ''
 @maxValue(1800)
 param containerStartTimeLimitSeconds int = 600
 
+@description('Managed identity used by the App Service platform to resolve @Microsoft.KeyVault(...) app-setting references. Default empty = system-assigned. REQUIRED when the app carries a user-assigned identity AND uses keyVaultReferences: platform KV-reference resolution defaults to the system-assigned MI, which typically has no KV RBAC (only the UAMI is granted Secrets User) — leaving the references unresolved (red X in the portal). Set to the UAMI resource ID. CPQ Phase 3a hit this on the Canary token reference.')
+param keyVaultReferenceIdentity string = ''
+
 @description('Resource tags.')
 param tags object = {}
 
@@ -92,6 +95,7 @@ resource app 'Microsoft.Web/sites@2024-04-01' = {
     httpsOnly: true
     clientAffinityEnabled: false
     publicNetworkAccess: 'Enabled'
+    keyVaultReferenceIdentity: empty(keyVaultReferenceIdentity) ? null : keyVaultReferenceIdentity
     virtualNetworkSubnetId: vnetIntegrationSubnetId
     // vnetRouteAllEnabled lives in siteConfig only — see below. The legacy
     // properties-level alias is silently accepted by some API versions and

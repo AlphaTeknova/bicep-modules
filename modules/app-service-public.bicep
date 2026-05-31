@@ -48,6 +48,12 @@ param appCommandLine string = ''
 @maxValue(1800)
 param containerStartTimeLimitSeconds int = 600
 
+@description('Route ALL outbound traffic through the regional VNet integration. Default false (public apps with no VNet integration need nothing). Set true when this app integrates a VNet and must reach private endpoints (Key Vault / SQL) — without it, outbound to *.vault.azure.net / *.database.windows.net resolves to the blocked public IPs and AddAzureKeyVault hangs at startup. CPQ Phase 3a hit exactly this on PublicApi.')
+param vnetRouteAllEnabled bool = false
+
+@description('Managed identity used by the App Service platform to resolve @Microsoft.KeyVault(...) app-setting references. Default empty = system-assigned. REQUIRED when the app carries a user-assigned identity AND uses keyVaultReferences: platform KV-reference resolution defaults to the system-assigned MI, which typically has no KV RBAC (only the UAMI is granted Secrets User) — leaving the references unresolved (red X in the portal). Set to the UAMI resource ID. CPQ Phase 3a hit this on the Canary token reference.')
+param keyVaultReferenceIdentity string = ''
+
 @description('Resource tags.')
 param tags object = {}
 
@@ -66,6 +72,7 @@ resource app 'Microsoft.Web/sites@2024-04-01' = {
     serverFarmId: planId
     httpsOnly: true
     clientAffinityEnabled: false
+    keyVaultReferenceIdentity: empty(keyVaultReferenceIdentity) ? null : keyVaultReferenceIdentity
     siteConfig: {
       linuxFxVersion: linuxFxVersion
       alwaysOn: true
@@ -74,6 +81,7 @@ resource app 'Microsoft.Web/sites@2024-04-01' = {
       http20Enabled: true
       healthCheckPath: healthCheckPath
       appCommandLine: appCommandLine
+      vnetRouteAllEnabled: vnetRouteAllEnabled
       appSettings: [for setting in items(union(appSettings, keyVaultReferences, {
         WEBSITES_CONTAINER_START_TIME_LIMIT: string(containerStartTimeLimitSeconds)
       })): {
