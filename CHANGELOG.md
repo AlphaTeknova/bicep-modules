@@ -2,6 +2,24 @@
 
 Module library releases. Format roughly follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [v1.5.0] — 2026-06-06
+
+Driven by CPQ Workstream 3 — hardening the internal SPA + API from the interim Entra-gated-public posture (consumer deviation D15) to the Dep §5.1 posture: private origins behind a WAF edge, Entra Conditional Access as the identity gate. The standard names App Gateway, but Front Door is the adopted variant for the SWA + App Service pair (native Static Web App Private Link support, lower cost, global edge); a W3.0 spike confirmed AFD Premium accepts a Standard SWA as a `staticSites` Private-Link origin. New module only — no change to existing modules.
+
+### Added
+
+- `modules/front-door-premium.bicep` — Fresh write. One shared Front Door **Premium** profile fronting N internal "sites" passed via the `sites` array; each becomes an AFD endpoint + origin-group + **Private-Link origin** (SWA `staticSites` or App Service `sites`) + AFD-managed custom domain + route, with a profile-wide managed-WAF policy (OWASP Default Rule Set 2.1 + Bot Manager) associated to every custom domain through one security policy. Optional diagnostics to Log Analytics. Outputs the per-site endpoint hostnames and custom-domain validation tokens.
+  - Out of module scope (ops / cross-RG): the `_dnsauth.<host>` TXT + `<host>` CNAME (zones are shared-infra-owned) and the per-origin Private Endpoint approval (the origin raises a PENDING request; App Service via `az network private-endpoint-connection`, SWA via Portal/`az rest` — the generic command does not support `Microsoft.Web/staticSites`).
+
+### Versioning notes
+
+`v1.5.0` per the README MINOR rule: a new module, no change to existing modules.
+
+### Notes for consumers
+
+- **Deploy-proven: Pending.** First deploy is CPQ Workstream 3 (stage). First apply may surface AFD API-version, `sharedPrivateLinkResource` group-id, or managed-rule-set-version findings that warrant a PATCH — flip the catalog entry to "Proven" once stage lands.
+- Premium tier is required (Private Link origins + managed WAF) — ~$330/mo base + requests. Deploy ONE profile in the shared hub RG and pass every env/app surface in `sites`; adding an app later appends to `sites`, no new profile.
+
 ## [v1.4.0] — 2026-06-05
 
 Driven by CPQ putting internal apps behind the Azure-managed `teknova-{env}.net` domains. The internal SPA reaches the InternalApi directly from the browser (no App Gateway front; Entra MSAL/JWT + Conditional Access is the gate). The module hardcoded a deny-all main site, so every `deploy-infra-stage` apply reverted a manual `az` `Allow` and broke the internal SPA. Making the main-site default action a parameter so the Entra-gated-public posture is codified instead of a reverting out-of-band hack. No breaking changes — the parameter defaults to the prior `Deny` behavior.
