@@ -2,6 +2,23 @@
 
 Module library releases. Format roughly follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [v1.4.0] — 2026-06-05
+
+Driven by CPQ putting internal apps behind the Azure-managed `teknova-{env}.net` domains. The internal SPA reaches the InternalApi directly from the browser (no App Gateway front; Entra MSAL/JWT + Conditional Access is the gate). The module hardcoded a deny-all main site, so every `deploy-infra-stage` apply reverted a manual `az` `Allow` and broke the internal SPA. Making the main-site default action a parameter so the Entra-gated-public posture is codified instead of a reverting out-of-band hack. No breaking changes — the parameter defaults to the prior `Deny` behavior.
+
+### Added
+
+- `modules/app-service-with-pe.bicep`: parameter `ipSecurityRestrictionsDefaultAction` (default `'Deny'`, `@allowed(['Allow','Deny'])`).
+  - Maps to `siteConfig.ipSecurityRestrictionsDefaultAction`. Default `'Deny'` = unchanged PE-only backend posture (public-IP requests 403; runtime reachable only via the inbound PE). Set `'Allow'` for an Entra-gated public surface — an internal app reached directly by browsers without an App Gateway front, where Entra (MSAL/JWT + Conditional Access) is the auth gate rather than the network. SCM/Kudu access restrictions are unaffected (still own-ruleset, Allow-default).
+
+### Versioning notes
+
+`v1.4.0` per the README's MINOR rule: a new optional parameter whose default (`'Deny'`) matches prior behavior. No consumer redeploys forced; existing `app-service-with-pe` consumers are unaffected unless they opt into `'Allow'`.
+
+### Notes for consumers
+
+- Setting `ipSecurityRestrictionsDefaultAction: 'Allow'` makes the runtime publicly reachable over HTTPS. Only do this for surfaces gated by application-layer auth (e.g. Entra Conditional Access enforcing MFA + device compliance). Document it as an architecture deviation against Dep §5.1 (the standard wants user-facing frontends behind App Gateway + WAF).
+
 ## [v1.3.0] — 2026-05-31
 
 Driven by CPQ Phase 3a prod stand-up — two App Service knobs that had to be set out-of-band via `az` after the first prod apply (and that caused a multi-hour debug of PublicApi failing to boot). Baking them into the modules so the first apply gets the right shape. No breaking changes — both new parameters default to the prior behavior.
