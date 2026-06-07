@@ -19,6 +19,13 @@ param location string = 'westus2'
 ])
 param sku string = 'Free'
 
+@description('Public network access to the SWA. Default Enabled (unchanged behavior). Set Disabled to make the *.azurestaticapps.net default host unreachable from the public internet — for a SWA fronted by Front Door over a Private Link origin, so the FD edge becomes the only ingress. Requires Standard SKU. NOTE: with this Disabled, confirm the Azure/static-web-apps-deploy content push still succeeds (it uses the token-based deploy API, not the content host) before relying on it — this is unproven as of v1.6.0.')
+@allowed([
+  'Enabled'
+  'Disabled'
+])
+param publicNetworkAccess string = 'Enabled'
+
 @description('Resource tags.')
 param tags object = {}
 
@@ -33,6 +40,7 @@ resource swa 'Microsoft.Web/staticSites@2024-04-01' = {
   properties: {
     stagingEnvironmentPolicy: 'Disabled' // We don't use SWA's own preview envs
     allowConfigFileUpdates: true
+    publicNetworkAccess: publicNetworkAccess
   }
 }
 

@@ -2,6 +2,22 @@
 
 Module library releases. Format roughly follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [v1.6.0] — 2026-06-06
+
+Driven by CPQ Workstream 3 — locking the internal SPA's Static Web App behind Front Door. To make the FD edge the only ingress, the SWA's public default host must be disabled. Adding the toggle as a parameter. No breaking changes — defaults to the prior `Enabled` behavior.
+
+### Added
+
+- `modules/static-web-app.bicep`: parameter `publicNetworkAccess` (default `'Enabled'`, `@allowed(['Enabled','Disabled'])`). Maps to `properties.publicNetworkAccess`. Set `'Disabled'` to hide the `*.azurestaticapps.net` default host from the public internet for a SWA reached only through a Front Door Private Link origin. Requires Standard SKU.
+
+### Versioning notes
+
+`v1.6.0` per the README MINOR rule: a new optional parameter whose default preserves prior behavior.
+
+### Notes for consumers
+
+- With `publicNetworkAccess: 'Disabled'`, **verify the `Azure/static-web-apps-deploy` GitHub Action still pushes content** (it uses the token-based deploy API, not the content host) — unproven as of this release; CPQ W3 stage is the validation event. Front Door must front the SWA **before** disabling public access, or the live SPA loses its only reachable host.
+
 ## [v1.5.0] — 2026-06-06
 
 Driven by CPQ Workstream 3 — hardening the internal SPA + API from the interim Entra-gated-public posture (consumer deviation D15) to the Dep §5.1 posture: private origins behind a WAF edge, Entra Conditional Access as the identity gate. The standard names App Gateway, but Front Door is the adopted variant for the SWA + App Service pair (native Static Web App Private Link support, lower cost, global edge); a W3.0 spike confirmed AFD Premium accepts a Standard SWA as a `staticSites` Private-Link origin. New module only — no change to existing modules.

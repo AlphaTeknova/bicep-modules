@@ -7,7 +7,7 @@ A library of reusable application-level Bicep modules for Teknova apps. Distinct
 | `AlphaTeknova/azure-shared-infra` | Deployment project | Running hub resources (VNet, DNS, Log Analytics) |
 | `alphateknova/bicep-modules` (this repo) | Module library | Reusable `.bicep` building blocks |
 
-## Module catalog (v1.5.0)
+## Module catalog (v1.6.0)
 
 The **Deploy-proven** column distinguishes modules with production heritage (have been deployed and run) from those whose first production deploy is still pending. Compile-only modules pass `az bicep build` cleanly but haven't been exercised against live Azure — first deploy may surface API-version, PE-groupId, or RBAC-shape issues that warrant a patch release.
 
@@ -73,6 +73,7 @@ Current state:
 - `v1.1.0` — hardening pass. Parameterizes opinionated defaults (`service-bus.bicep` dup-detection; `keyvault-with-pe.bicep` template/deployment/disk-encryption flags). Removes a duplicate `vnetRouteAllEnabled` in `app-service-with-pe.bicep`. Adds repo-local CI that lints every module on every PR.
 - `v1.2.0`–`v1.4.0` — `app-service*` parameter additions: `appCommandLine` + container warmup limit (v1.2.0); `vnetRouteAllEnabled` + `keyVaultReferenceIdentity` (v1.3.0); `ipSecurityRestrictionsDefaultAction` (v1.4.0). All optional, defaults preserve prior behavior. See git tags.
 - `v1.5.0` — adds `front-door-premium.bicep`: shared Front Door **Premium** + managed-WAF edge with Private-Link origins (SWA + App Service). New module → MINOR.
+- `v1.6.0` — `static-web-app.bicep`: adds `publicNetworkAccess` (default `Enabled`). Set `Disabled` to lock a SWA behind a Front Door Private-Link origin. Optional param → MINOR.
 
 Expect a `v1.x.y` after EOP's first stage deploy. That release will flip the "Pending" entries in the catalog to "Proven" and call out any parameter/output changes needed by deploy-time findings.
 
