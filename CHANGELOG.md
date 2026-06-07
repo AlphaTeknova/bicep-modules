@@ -2,6 +2,16 @@
 
 Module library releases. Format roughly follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [v1.7.0] — 2026-06-07
+
+### Removed
+
+- `modules/front-door-premium.bicep` — added in v1.5.0, removed here. A shared Front Door edge is **hub-level** infrastructure, so it now lives as a local module in `azure-shared-infra` (`bicep/modules/front-door.bicep`), not in this app-level library. The library copy was never consumed by any repo and never deploy-proven (catalog: Pending), so removal is non-breaking in practice.
+
+### Versioning notes
+
+Technically a module removal (MAJOR by the strict rule), but with **zero consumers** and a never-proven module the practical impact is none — tagged MINOR (`v1.7.0`). Bump to a MAJOR instead if you prefer strict semantics.
+
 ## [v1.6.0] — 2026-06-06
 
 Driven by CPQ Workstream 3 — locking the internal SPA's Static Web App behind Front Door. To make the FD edge the only ingress, the SWA's public default host must be disabled. Adding the toggle as a parameter. No breaking changes — defaults to the prior `Enabled` behavior.
