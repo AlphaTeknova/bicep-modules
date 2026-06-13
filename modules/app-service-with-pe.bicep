@@ -116,6 +116,10 @@ resource app 'Microsoft.Web/sites@2024-04-01' = {
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       http20Enabled: true
+      // Linux default is OFF; SignalR needs it. AFD won't proxy WebSocket upgrades
+      // (SSE/long-polling fallback), but a non-AFD ingress path shouldn't rediscover
+      // the platform default. (EOP Phase 10 arch-review R5.)
+      webSocketsEnabled: true
       healthCheckPath: healthCheckPath
       appCommandLine: appCommandLine
       vnetRouteAllEnabled: true
@@ -140,6 +144,26 @@ resource app 'Microsoft.Web/sites@2024-04-01' = {
         type: cs.value.type
       }]
     }
+  }
+}
+
+// Disable Kudu/SCM basic-auth publishing on BOTH channels. Otherwise basic-auth
+// publishing is on by default, which would undercut the AAD-only deploy posture
+// regardless of the SCM network path — deploys go via ARM (OneDeploy under an MSI)
+// or not at all. (EOP Phase 10 sec-review H1.)
+resource scmBasicAuth 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@2024-04-01' = {
+  parent: app
+  name: 'scm'
+  properties: {
+    allow: false
+  }
+}
+
+resource ftpBasicAuth 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@2024-04-01' = {
+  parent: app
+  name: 'ftp'
+  properties: {
+    allow: false
   }
 }
 

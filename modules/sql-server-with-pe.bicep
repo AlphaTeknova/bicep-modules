@@ -35,6 +35,13 @@ param privateEndpointSubnetId string
 @description('Resource ID of the privatelink.database.windows.net private DNS zone (lives in the hub).')
 param privateDnsZoneId string
 
+@description('Public network access. Default Disabled (PE-only). Stage sets Enabled for the CPQ hybrid migration posture — GitHub-hosted runners apply EF bundles over a transient firewall rule. azureADOnlyAuthentication stays the real barrier either way (a stale rule or the public TDS endpoint grants nothing without an AAD token). (EOP Phase 10 arch-review B3.)')
+@allowed([
+  'Enabled'
+  'Disabled'
+])
+param publicNetworkAccess string = 'Disabled'
+
 @description('Resource tags.')
 param tags object = {}
 
@@ -49,7 +56,7 @@ resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
     // No administratorLogin / administratorLoginPassword. SQL-auth is disabled
     // by the child azureADOnlyAuthentications resource below.
     version: '12.0'
-    publicNetworkAccess: 'Disabled'
+    publicNetworkAccess: publicNetworkAccess
     minimalTlsVersion: '1.2'
     restrictOutboundNetworkAccess: 'Disabled'
     administrators: {
