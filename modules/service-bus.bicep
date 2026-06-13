@@ -10,10 +10,14 @@
 // - NO SAS authorization rules created. All access is MSI + Entra RBAC.
 //   Consumers grant `Azure Service Bus Data Sender` / `Receiver` separately
 //   on the namespace or topic scope.
-// - Subscriptions are NOT created here. They land with the consumers
-//   (Phase 4 intake worker subscribes to inbound; Phase 8 NetSuite writer
-//   subscribes to approvals). Creating them in infra would tie subscription
-//   lifecycle to infra deploys, which is the wrong shape.
+// - Subscriptions ARE created here, as children of each topic (EOP Phase 10
+//   arch-review R6 — reverses the earlier "subscriptions land with consumers"
+//   stance). EOP-shaped consumers hold data-plane RBAC only (Sender/Receiver,
+//   disableLocalAuth) — no management plane to self-create subscriptions — and
+//   nothing in the app calls ServiceBusAdministrationClient. Dev only worked
+//   because the Aspire emulator materialized the AppHost topology; in Azure the
+//   workers would CreateProcessor against a missing subscription and throw
+//   MessagingEntityNotFound. So the topology is declared in infra.
 
 @description('Service Bus namespace name, e.g. tk-com-orderintake-stage-sb. Globally unique.')
 param name string
@@ -27,8 +31,8 @@ param privateEndpointSubnetId string
 @description('Resource ID of the privatelink.servicebus.windows.net private DNS zone.')
 param privateDnsZoneId string
 
-@description('Topic names to create. Subscriptions land with the consumer workloads, not here.')
-param topicNames array = []
+@description('Topics to create, each with its subscriptions. Shape: [{ name: string, subscriptions: [{ name: string, lockDuration: string (ISO-8601, e.g. PT5M), maxDeliveryCount: int }] }]. Subscriptions are created in-module (see header note / R6).')
+param topics array = []
 
 @description('Whether topics require duplicate detection on the MessageId. Default true to match the EOP outbox-pattern use case (consumers dedupe on outbox row Id). Set false for fan-out scenarios where every send is unique.')
 param topicRequiresDuplicateDetection bool = true
@@ -58,9 +62,9 @@ resource sb 'Microsoft.ServiceBus/namespaces@2024-01-01' = {
   }
 }
 
-resource topics 'Microsoft.ServiceBus/namespaces/topics@2024-01-01' = [for topicName in topicNames: {
+resource topicResources 'Microsoft.ServiceBus/namespaces/topics@2024-01-01' = [for topic in topics: {
   parent: sb
-  name: topicName
+  name: topic.name
   properties: {
     enablePartitioning: false
     requiresDuplicateDetection: topicRequiresDuplicateDetection
@@ -68,6 +72,30 @@ resource topics 'Microsoft.ServiceBus/namespaces/topics@2024-01-01' = [for topic
     defaultMessageTimeToLive: 'P14D'
     supportOrdering: false
   }
+}]
+
+// Flatten (topic × subscriptions) into one list so a single resource loop covers
+// every subscription across all topics. Subscriptions dead-letter on message
+// expiration so the DLQ-depth alert (EOP Step 4) sees expired-but-unconsumed messages.
+var subscriptionsByTopic = [for topic in topics: map(topic.subscriptions, sub => {
+  topicName: topic.name
+  subName: sub.name
+  lockDuration: sub.lockDuration
+  maxDeliveryCount: sub.maxDeliveryCount
+})]
+var topicSubscriptions = flatten(subscriptionsByTopic)
+
+resource subscriptionResources 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2024-01-01' = [for s in topicSubscriptions: {
+  name: '${name}/${s.topicName}/${s.subName}'
+  properties: {
+    lockDuration: s.lockDuration
+    maxDeliveryCount: s.maxDeliveryCount
+    deadLetteringOnMessageExpiration: true
+    deadLetteringOnFilterEvaluationExceptions: true
+  }
+  dependsOn: [
+    topicResources
+  ]
 }]
 
 resource privateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = {

@@ -2,6 +2,19 @@
 
 Module library releases. Format roughly follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [v2.0.0] — 2026-06-13
+
+EOP Phase 10. One breaking change drives the MAJOR bump. Builds on v1.7.0 — the v1.3.0/v1.4.0 app-service deploy posture (`userAssignedIdentityIds`, SCM-public-for-CI, `ipSecurityRestrictionsDefaultAction`) is retained as-is and already covers EOP's B1 deploy-mechanism + R4 UAMI needs.
+
+### Changed — BREAKING
+
+- `modules/service-bus.bicep` — `topicNames: string[]` replaced by `topics: [{ name, subscriptions: [{ name, lockDuration, maxDeliveryCount }] }]`. Subscriptions are now created in-module, reversing the v1.x "subscriptions land with consumers" stance: EOP-shaped consumers hold data-plane RBAC only (Sender/Receiver, `disableLocalAuth`), nothing calls `ServiceBusAdministrationClient`, and dev only worked because the Aspire emulator materialized the topology. Subscriptions dead-letter on message expiration so DLQ-depth alerts fire. (EOP arch-review R6.)
+
+### Added — behavior (no param break)
+
+- `modules/app-service-with-pe.bicep` — `webSocketsEnabled: true` (Linux default off; SignalR needs it — EOP arch-review R5) and `basicPublishingCredentialsPolicies` children for `scm` + `ftp` with `allow: false` (Kudu basic-auth publishing was on by default; AAD-only publishing now enforced — EOP sec-review H1).
+- `modules/sql-server-with-pe.bicep` — `publicNetworkAccess` parameter (default `Disabled`; stage uses `Enabled` for the CPQ hybrid migration posture — `azureADOnlyAuthentication` remains the real barrier). (EOP arch-review B3.)
+
 ## [v1.7.0] — 2026-06-07
 
 ### Removed
