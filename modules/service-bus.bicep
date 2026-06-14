@@ -1,12 +1,19 @@
-// Service Bus namespace (Standard) with PE, MSI-only auth, parameterized topics.
+// Service Bus namespace (Standard or Premium) with MSI-only auth, parameterized topics.
 //
 // Fresh write (no QB lineage; QB has no Service Bus usage). Native to this
 // library, added in EOP Phase 3 for the three-worker pipeline (TS ADR-D-003b).
 //
 // Usage notes:
-// - Standard tier — supports topics + subscriptions. Premium reserved for
-//   prod throughput escalations (Phase 14 if needed).
-// - publicNetworkAccess: 'Disabled'. The PE is the only path.
+// - `sku`: 'Standard' (default) or 'Premium'. Private endpoints and IP/VNet network
+//   rules are PREMIUM-ONLY on Service Bus — a Standard namespace with a PE fails
+//   deploy (PrivateEndpointInvalidSku). So the network posture is sku-driven:
+//     * Premium → PE created, publicNetworkAccess 'Disabled' (private path only).
+//     * Standard → NO PE, publicNetworkAccess 'Enabled' (Standard can't be Disabled
+//       without a PE, and can't take network rules). The endpoint is internet-
+//       reachable but the DATA PLANE is still locked: disableLocalAuth = true means
+//       Entra-RBAC only (no SAS, no anonymous) — only granted principals can use it.
+//   Pick Premium where network-path isolation is required; Standard where MSI-only
+//   auth on a low-sensitivity / thin-payload bus is acceptable (≈64× cheaper).
 // - NO SAS authorization rules created. All access is MSI + Entra RBAC.
 //   Consumers grant `Azure Service Bus Data Sender` / `Receiver` separately
 //   on the namespace or topic scope.
@@ -25,11 +32,28 @@ param name string
 @description('Azure region.')
 param location string
 
-@description('Resource ID of the subnet that will host the PE NIC.')
-param privateEndpointSubnetId string
+@description('Namespace SKU. Premium enables the private endpoint + private-only access; Standard is public-endpoint + MSI-only auth (PE/network-rules are Premium-only on Service Bus).')
+@allowed([
+  'Standard'
+  'Premium'
+])
+param sku string = 'Standard'
 
-@description('Resource ID of the privatelink.servicebus.windows.net private DNS zone.')
-param privateDnsZoneId string
+@description('Premium messaging units (1/2/4/8/16). Ignored for Standard.')
+@allowed([
+  1
+  2
+  4
+  8
+  16
+])
+param messagingUnits int = 1
+
+@description('Resource ID of the subnet that will host the PE NIC. Required only for Premium (PE).')
+param privateEndpointSubnetId string = ''
+
+@description('Resource ID of the privatelink.servicebus.windows.net private DNS zone. Required only for Premium (PE).')
+param privateDnsZoneId string = ''
 
 @description('Topics to create, each with its subscriptions. Shape: [{ name: string, subscriptions: [{ name: string, lockDuration: string (ISO-8601, e.g. PT5M), maxDeliveryCount: int }] }]. Subscriptions are created in-module (see header note / R6).')
 param topics array = []
@@ -48,14 +72,18 @@ resource sb 'Microsoft.ServiceBus/namespaces@2024-01-01' = {
   location: location
   tags: tags
   sku: {
-    name: 'Standard'
-    tier: 'Standard'
+    name: sku
+    tier: sku
+    capacity: sku == 'Premium' ? messagingUnits : null
   }
   identity: {
     type: 'SystemAssigned'
   }
   properties: {
-    publicNetworkAccess: 'Disabled'
+    // Premium: private-only (PE is the path). Standard: public endpoint (can't be
+    // Disabled without a PE, which Standard can't have) — data plane stays MSI-only
+    // via disableLocalAuth below.
+    publicNetworkAccess: sku == 'Premium' ? 'Disabled' : 'Enabled'
     disableLocalAuth: true
     minimumTlsVersion: '1.2'
     zoneRedundant: false
@@ -98,7 +126,8 @@ resource subscriptionResources 'Microsoft.ServiceBus/namespaces/topics/subscript
   ]
 }]
 
-resource privateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = {
+// PE + its DNS zone group exist only for Premium (Service Bus PE is Premium-only).
+resource privateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = if (sku == 'Premium') {
   name: '${name}-pe'
   location: location
   tags: tags
@@ -120,7 +149,7 @@ resource privateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = {
   }
 }
 
-resource dnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-01-01' = {
+resource dnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-01-01' = if (sku == 'Premium') {
   parent: privateEndpoint
   name: 'default'
   properties: {
