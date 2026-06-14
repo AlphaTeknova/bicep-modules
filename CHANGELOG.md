@@ -2,6 +2,12 @@
 
 Module library releases. Format roughly follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [v2.1.0] — 2026-06-14
+
+### Added — `service-bus.bicep` sku-conditional networking (non-breaking; defaults preserve v2.0.0 intent)
+
+- New `sku` param ('Standard' default | 'Premium') + `messagingUnits` (Premium capacity). Service Bus private endpoints and IP/VNet network rules are **Premium-only** — a Standard namespace with a PE fails deploy (`PrivateEndpointInvalidSku`). So the network posture is now sku-driven: **Premium** → PE created + `publicNetworkAccess: 'Disabled'` (private path); **Standard** → no PE + `publicNetworkAccess: 'Enabled'`, data plane still locked by `disableLocalAuth: true` (Entra-RBAC only, no SAS). `privateEndpointSubnetId`/`privateDnsZoneId` are now optional (required only for Premium). Existing Premium callers passing those + `sku: 'Premium'` get the v2.0.0 behavior.
+
 ## [v2.0.0] — 2026-06-13
 
 EOP Phase 10. One breaking change drives the MAJOR bump. Builds on v1.7.0 — the v1.3.0/v1.4.0 app-service deploy posture (`userAssignedIdentityIds`, SCM-public-for-CI, `ipSecurityRestrictionsDefaultAction`) is retained as-is and already covers EOP's B1 deploy-mechanism + R4 UAMI needs.
