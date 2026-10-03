@@ -2,6 +2,16 @@
 
 Module library releases. Format roughly follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [v2.2.0] — 2026-10-02
+
+### Added — `app-service-public.bicep` outbound VNet integration (non-breaking; the default preserves v2.1.0 behavior)
+
+- New optional `vnetIntegrationSubnetId` param, written to the site's `virtualNetworkSubnetId`. An app with public ingress can now reach private endpoints (shared SQL, Key Vault) without the inbound private endpoint that `app-service-with-pe.bicep` requires. The site property needs only `subnets/join/action` (the Azure Deployment Standard §6.3 `Subnet Join` role). A consumer that adds a `Microsoft.Web/sites/networkConfig` resource instead also needs `subnets/write`, which that role does not grant. First consumer: process-playbook stage.
+
+### Versioning notes
+
+`v2.2.0` per the README MINOR rule: a new optional parameter whose default preserves prior behavior.
+
 ## [v2.1.0] — 2026-06-14
 
 ### Added — `service-bus.bicep` sku-conditional networking (non-breaking; defaults preserve v2.0.0 intent)
