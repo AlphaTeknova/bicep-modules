@@ -48,6 +48,9 @@ param appCommandLine string = ''
 @maxValue(1800)
 param containerStartTimeLimitSeconds int = 600
 
+@description('Resource ID of a subnet delegated to Microsoft.Web/serverFarms for OUTBOUND regional VNet integration, e.g. the shared `appservice` subnet. Default empty = no integration (unchanged behavior). Set on the site itself (`virtualNetworkSubnetId`), which needs only `Microsoft.Network/virtualNetworks/subnets/join/action` on the subnet, the Azure Deployment Standard §6.3 `Subnet Join` role. A separate `Microsoft.Web/sites/networkConfig` resource also needs `subnets/write` and fails under that role (`LinkedAuthorizationFailed`, process-playbook stage, 2026-10-02). Pair with vnetRouteAllEnabled: true to reach private endpoints.')
+param vnetIntegrationSubnetId string = ''
+
 @description('Route ALL outbound traffic through the regional VNet integration. Default false (public apps with no VNet integration need nothing). Set true when this app integrates a VNet and must reach private endpoints (Key Vault / SQL) — without it, outbound to *.vault.azure.net / *.database.windows.net resolves to the blocked public IPs and AddAzureKeyVault hangs at startup. CPQ Phase 3a hit exactly this on PublicApi.')
 param vnetRouteAllEnabled bool = false
 
@@ -70,6 +73,7 @@ resource app 'Microsoft.Web/sites@2024-04-01' = {
   }
   properties: {
     serverFarmId: planId
+    virtualNetworkSubnetId: empty(vnetIntegrationSubnetId) ? null : vnetIntegrationSubnetId
     httpsOnly: true
     clientAffinityEnabled: false
     keyVaultReferenceIdentity: empty(keyVaultReferenceIdentity) ? null : keyVaultReferenceIdentity
